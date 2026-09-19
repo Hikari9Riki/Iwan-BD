@@ -65,17 +65,27 @@ function updateFocus() {
 // Simplified event listeners without the glitchy teleporting guards
 gallery.addEventListener('scroll', updateFocus, { passive: true });
 soundToggle.addEventListener('click', toggleSound);
-window.addEventListener('resize', updateFocus);
+// Helper function to dynamically add padding so ends can reach the center
+function setGalleryPadding() {
+  if (!memories.length) return;
+  // Calculate exactly how much empty space is needed
+  const padding = (gallery.clientHeight - memories[0].clientHeight) / 2;
+  gallery.style.paddingTop = `${padding}px`;
+  gallery.style.paddingBottom = `${padding}px`;
+}
 
+// Update resize listener to recalculate if the user rotates their phone
+window.addEventListener('resize', () => { 
+  setGalleryPadding();
+  updateFocus(); 
+});
+
+// Update load listener to start directly on Image 1
 window.addEventListener('load', () => { 
-  // Automatically scroll to the middle set of images on page load
-  const middleImageIndex = Math.floor(memories.length / 2);
-  const middleImage = memories[middleImageIndex];
+  setGalleryPadding();
   
-  if (middleImage) {
-    const centerOffset = (gallery.clientHeight / 2) - (middleImage.clientHeight / 2);
-    gallery.scrollTop = middleImage.offsetTop - centerOffset;
-  }
+  // Start at the very top. Because of our new padding, 0 is perfectly centered on Image 1
+  gallery.scrollTop = 0; 
   
   updateFocus(); 
 }, { once: true });
@@ -121,11 +131,16 @@ memories.forEach(card => {
       if (!media) return;
 
       if (media.tagName === 'VIDEO') {
+        if (card.classList.contains('portrait-card')) {
+          viewerVideo.classList.add('portrait-mode');
+        } else {
+          viewerVideo.classList.remove('portrait-mode');
+        }
         viewerVideo.src = media.src;
         viewerVideo.removeAttribute('hidden');
         viewerImage.setAttribute('hidden', '');
         viewerLetter.setAttribute('hidden', '');
-        viewerVideo.pause(); 
+        viewerVideo.pause();
       } else {
         viewerImage.src = media.src;
         viewerImage.alt = media.alt || '';
@@ -157,3 +172,31 @@ imageViewer.addEventListener('click', (e) => {
 window.addEventListener('popstate', () => {
   closeViewer();
 });
+
+// 5. The 3-Minute Hidden Surprise Timer
+setTimeout(() => {
+  const surpriseVideo = document.getElementById('surprise-video');
+  const toast = document.getElementById('toast-notification');
+  
+  if (surpriseVideo) {
+    // 1. Reveal the hidden video card
+    surpriseVideo.classList.remove('hidden-card');
+    
+    // 2. Recalculate layout so the new card can be scrolled to
+    if (typeof setGalleryPadding === 'function') setGalleryPadding();
+    if (typeof updateFocus === 'function') updateFocus();
+    
+    // 3. Show the pop-up notification
+    if (toast) {
+      toast.classList.add('show');
+      
+      // Play the chime sound to draw attention to the notification
+      if (soundEnabled && typeof playChime === 'function') playChime();
+      
+      // Hide the notification after 5 seconds
+      setTimeout(() => { 
+        toast.classList.remove('show'); 
+      }, 5000); 
+    }
+  }
+}, 180000); // 180,000 milliseconds = 3 minutes
